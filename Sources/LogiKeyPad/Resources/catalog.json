@@ -1,0 +1,356 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "id": "agents",
+      "title": "Agents",
+      "keys": [
+        "muse_app",
+        "codex_app",
+        "claude_code",
+        "claude_app",
+        "muse_cli",
+        "prompt_review",
+        "prompt_explain",
+        "prompt_tests",
+        "prompt_commit"
+      ]
+    },
+    {
+      "id": "build",
+      "title": "Build",
+      "keys": [
+        "build",
+        "test",
+        "run",
+        "format",
+        "lint",
+        "dev_server",
+        "clean",
+        "terminal_here",
+        "editor_here"
+      ]
+    },
+    {
+      "id": "git",
+      "title": "Git",
+      "keys": [
+        "git_status",
+        "stage_all",
+        "commit",
+        "push",
+        "pull",
+        "fetch",
+        "stash",
+        "diff",
+        "copy_branch"
+      ]
+    },
+    {
+      "id": "github",
+      "title": "GitHub",
+      "keys": [
+        "pr",
+        "ci_status",
+        "ci_rerun",
+        "reviews",
+        "repo_web",
+        "copy_pr_link",
+        "standup",
+        "pomodoro",
+        "quick_note"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "muse_app",
+      "title": "Muse",
+      "sub": "App",
+      "symbol": "sparkles",
+      "kind": "openApp",
+      "arg": "Muse"
+    },
+    {
+      "id": "codex_app",
+      "title": "Codex",
+      "sub": "App",
+      "symbol": "chevron.left.forwardslash.chevron.right",
+      "kind": "openApp",
+      "arg": "Codex"
+    },
+    {
+      "id": "claude_code",
+      "title": "Claude",
+      "sub": "Code · CLI",
+      "symbol": "terminal",
+      "kind": "terminal",
+      "arg": "claude"
+    },
+    {
+      "id": "claude_app",
+      "title": "Claude",
+      "sub": "App",
+      "symbol": "message",
+      "kind": "openApp",
+      "arg": "Claude"
+    },
+    {
+      "id": "muse_cli",
+      "title": "Muse",
+      "sub": "CLI",
+      "symbol": "command",
+      "kind": "terminal",
+      "arg": "muse"
+    },
+    {
+      "id": "prompt_review",
+      "title": "Review",
+      "sub": "my diff",
+      "symbol": "eye",
+      "kind": "prompt",
+      "arg": "review"
+    },
+    {
+      "id": "prompt_explain",
+      "title": "Explain",
+      "sub": "my diff",
+      "symbol": "questionmark.bubble",
+      "kind": "prompt",
+      "arg": "explain"
+    },
+    {
+      "id": "prompt_tests",
+      "title": "Tests",
+      "sub": "write them",
+      "symbol": "checklist",
+      "kind": "prompt",
+      "arg": "tests"
+    },
+    {
+      "id": "prompt_commit",
+      "title": "Commit",
+      "sub": "message",
+      "symbol": "text.badge.checkmark",
+      "kind": "prompt",
+      "arg": "commit"
+    },
+    {
+      "id": "build",
+      "title": "Build",
+      "sub": "",
+      "symbol": "hammer",
+      "kind": "task",
+      "arg": "build"
+    },
+    {
+      "id": "test",
+      "title": "Test",
+      "sub": "",
+      "symbol": "testtube.2",
+      "kind": "task",
+      "arg": "test"
+    },
+    {
+      "id": "run",
+      "title": "Run",
+      "sub": "",
+      "symbol": "play.fill",
+      "kind": "task",
+      "arg": "run"
+    },
+    {
+      "id": "format",
+      "title": "Format",
+      "sub": "",
+      "symbol": "alignleft",
+      "kind": "task",
+      "arg": "format"
+    },
+    {
+      "id": "lint",
+      "title": "Lint",
+      "sub": "",
+      "symbol": "line.3.horizontal.decrease.circle",
+      "kind": "task",
+      "arg": "lint"
+    },
+    {
+      "id": "dev_server",
+      "title": "Server",
+      "sub": "start/stop",
+      "symbol": "server.rack",
+      "kind": "task",
+      "arg": "dev"
+    },
+    {
+      "id": "clean",
+      "title": "Clean",
+      "sub": "artifacts",
+      "symbol": "trash",
+      "kind": "task",
+      "arg": "clean",
+      "confirm": true
+    },
+    {
+      "id": "terminal_here",
+      "title": "Terminal",
+      "sub": "here",
+      "symbol": "terminal.fill",
+      "kind": "terminal",
+      "arg": ""
+    },
+    {
+      "id": "editor_here",
+      "title": "Editor",
+      "sub": "open repo",
+      "symbol": "doc.text",
+      "kind": "editor",
+      "arg": ""
+    },
+    {
+      "id": "git_status",
+      "title": "Status",
+      "sub": "refresh",
+      "symbol": "arrow.triangle.branch",
+      "kind": "git",
+      "arg": "status"
+    },
+    {
+      "id": "stage_all",
+      "title": "Stage",
+      "sub": "all",
+      "symbol": "plus.square.on.square",
+      "kind": "git",
+      "arg": "stage"
+    },
+    {
+      "id": "commit",
+      "title": "Commit",
+      "sub": "staged",
+      "symbol": "checkmark.seal",
+      "kind": "git",
+      "arg": "commit"
+    },
+    {
+      "id": "push",
+      "title": "Push",
+      "sub": "",
+      "symbol": "arrow.up.circle",
+      "kind": "git",
+      "arg": "push"
+    },
+    {
+      "id": "pull",
+      "title": "Pull",
+      "sub": "",
+      "symbol": "arrow.down.circle",
+      "kind": "git",
+      "arg": "pull"
+    },
+    {
+      "id": "fetch",
+      "title": "Fetch",
+      "sub": "--prune",
+      "symbol": "arrow.down.doc",
+      "kind": "git",
+      "arg": "fetch"
+    },
+    {
+      "id": "stash",
+      "title": "Stash",
+      "sub": "push/pop",
+      "symbol": "tray.and.arrow.down",
+      "kind": "git",
+      "arg": "stash"
+    },
+    {
+      "id": "diff",
+      "title": "Diff",
+      "sub": "in editor",
+      "symbol": "doc.badge.gearshape",
+      "kind": "git",
+      "arg": "diff"
+    },
+    {
+      "id": "copy_branch",
+      "title": "Branch",
+      "sub": "copy name",
+      "symbol": "doc.on.doc",
+      "kind": "git",
+      "arg": "copyBranch"
+    },
+    {
+      "id": "pr",
+      "title": "PR",
+      "sub": "open/create",
+      "symbol": "arrow.triangle.pull",
+      "kind": "github",
+      "arg": "pr"
+    },
+    {
+      "id": "ci_status",
+      "title": "CI",
+      "sub": "checks",
+      "symbol": "gauge.with.dots.needle.33percent",
+      "kind": "github",
+      "arg": "checks"
+    },
+    {
+      "id": "ci_rerun",
+      "title": "Re-run",
+      "sub": "failed CI",
+      "symbol": "arrow.clockwise.circle",
+      "kind": "github",
+      "arg": "rerun"
+    },
+    {
+      "id": "reviews",
+      "title": "Reviews",
+      "sub": "for me",
+      "symbol": "person.badge.key",
+      "kind": "github",
+      "arg": "reviews"
+    },
+    {
+      "id": "repo_web",
+      "title": "Repo",
+      "sub": "on GitHub",
+      "symbol": "globe",
+      "kind": "github",
+      "arg": "repo"
+    },
+    {
+      "id": "copy_pr_link",
+      "title": "PR Link",
+      "sub": "copy",
+      "symbol": "link",
+      "kind": "github",
+      "arg": "copyPR"
+    },
+    {
+      "id": "standup",
+      "title": "Standup",
+      "sub": "today",
+      "symbol": "sun.max",
+      "kind": "flow",
+      "arg": "standup"
+    },
+    {
+      "id": "pomodoro",
+      "title": "Focus",
+      "sub": "25 min",
+      "symbol": "timer",
+      "kind": "flow",
+      "arg": "pomodoro"
+    },
+    {
+      "id": "quick_note",
+      "title": "Note",
+      "sub": "NOTES.md",
+      "symbol": "note.text.badge.plus",
+      "kind": "flow",
+      "arg": "note"
+    }
+  ]
+}

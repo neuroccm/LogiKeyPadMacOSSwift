@@ -1,0 +1,12 @@
+type: plugin4
+name: LogiKeypadDevpad
+version: 0.1.0
+displayName: LogiKeyPad Dev Pad
+description: Code-development keys for the MX Creative Keypad — Muse, Codex, Claude Code, build/test, git and GitHub, driven by the native LogiKeyPad Swift app. Private on-device use.
+minimumLoupedeckVersion: 6.1
+
+pluginType: remote
+pluginRuntime: nodejs
+entryPoint: index.mjs
+
+pluginCapabilities:

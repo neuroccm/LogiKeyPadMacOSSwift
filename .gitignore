@@ -1,0 +1,7 @@
+.build/
+build/
+plugin/node_modules/
+plugin/dist/
+plugin/*.lplug4
+plugin/src/catalog.generated.ts
+.DS_Store
