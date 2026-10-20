@@ -61,6 +61,27 @@ struct PadConfig: Codable, Sendable {
     var pages: [CatalogPage]
     var editorApp: String = "Visual Studio Code"
     var terminalApp: String = "Terminal"  // Terminal (scriptable) or Ghostty (open-at-dir)
+    var recentCount: Int = 5               // GitHub repo picker: recent 5 or 10
+
+    init(theme: PadTheme = .midnight, repoPath: String = "", pages: [CatalogPage],
+         editorApp: String = "Visual Studio Code", terminalApp: String = "Terminal",
+         recentCount: Int = 5) {
+        self.theme = theme; self.repoPath = repoPath; self.pages = pages
+        self.editorApp = editorApp; self.terminalApp = terminalApp
+        self.recentCount = recentCount
+    }
+
+    // decodeIfPresent throughout: configs written by older builds keep loading
+    // as fields are added (synthesized Codable would reject missing keys).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        theme = try c.decodeIfPresent(PadTheme.self, forKey: .theme) ?? .midnight
+        repoPath = try c.decodeIfPresent(String.self, forKey: .repoPath) ?? ""
+        pages = try c.decodeIfPresent([CatalogPage].self, forKey: .pages) ?? []
+        editorApp = try c.decodeIfPresent(String.self, forKey: .editorApp) ?? "Visual Studio Code"
+        terminalApp = try c.decodeIfPresent(String.self, forKey: .terminalApp) ?? "Terminal"
+        recentCount = try c.decodeIfPresent(Int.self, forKey: .recentCount) ?? 5
+    }
 
     static func defaults(catalog: Catalog) -> PadConfig {
         PadConfig(pages: catalog.pages)

@@ -12,6 +12,7 @@ struct LogiKeyPadApp: App {
         WindowGroup("LogiKeyPad", id: "main") {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(appState.github)
                 .frame(minWidth: 880, minHeight: 620)
                 .task { appState.start() }
         }
@@ -63,6 +64,8 @@ final class AppState: ObservableObject {
     let monitor = RepoMonitor()
     let bridge = BridgeServer()       // legacy Actions SDK path (optional)
     let hid = MXKeypadHID()            // primary: direct HID, no Options+
+    let github = GitHubSync()
+    @Published var cloningSlug: String?
     @Published var devicePage = 0 {
         didSet { repaintPanel(force: true) }
     }
@@ -123,6 +126,9 @@ final class AppState: ObservableObject {
             return await self.handleBridgeKey(id)
         }
         bridge.start()
+        github.onLog = { [weak self] line in self?.monitor.log(line) }
+        github.loadCache()
+        Task { await github.syncIfStale() }
         refreshHealth()
         monitor.log("LogiKeyPad ready — \(catalog.actions.count) actions, \(catalog.pages.count) pages.")
         if !hid.connected {
@@ -214,6 +220,30 @@ final class AppState: ObservableObject {
         let themeURL = BridgeServer.tokenFileURL().deletingLastPathComponent()
             .appendingPathComponent("theme.txt")
         try? config.theme.rawValue.write(to: themeURL, atomically: true, encoding: .utf8)
+    }
+
+    /// Clones a GitHub repo into the default parent, then selects it.
+    func cloneRepo(_ repo: GitHubRepo) async {
+        guard cloningSlug == nil else { return }
+        cloningSlug = repo.slug
+        defer { cloningSlug = nil }
+        let parent = GitHubSync.defaultCloneParent()
+        let dest = (parent as NSString).appendingPathComponent(repo.name)
+        if FileManager.default.fileExists(atPath: dest) {
+            monitor.log("\(repo.name) already exists at \(dest) — selecting it.")
+            github.markCloned(slug: repo.slug, path: dest)
+            setRepo(dest)
+            return
+        }
+        monitor.log("Cloning \(repo.nameWithOwner) → \(dest) …")
+        let r = await Shell.gh(["repo", "clone", repo.nameWithOwner, dest], cwd: parent, timeout: 600)
+        if r.ok {
+            github.markCloned(slug: repo.slug, path: dest)
+            setRepo(dest)
+            monitor.log("Cloned \(repo.nameWithOwner).")
+        } else {
+            monitor.log("Clone failed: \(r.trimmed)")
+        }
     }
 
     func setRepo(_ path: String) {

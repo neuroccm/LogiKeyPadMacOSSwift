@@ -121,6 +121,51 @@ final class LogiKeyPadTests: XCTestCase {
         XCTAssertEqual(NSBitmapImageRep(data: tile)?.pixelsWide, 118)
     }
 
+    // MARK: GitHub sync
+
+    func testRemoteURLSlugNormalization() {
+        XCTAssertEqual(GitHubSync.slug(fromRemoteURL: "git@github.com:NeuroCCM/LogiKeyPadMacOSSwift.git"),
+                       "neuroccm/logikeypadmacosswift")
+        XCTAssertEqual(GitHubSync.slug(fromRemoteURL: "https://github.com/aprilnea/openlogi.git"),
+                       "aprilnea/openlogi")
+        XCTAssertEqual(GitHubSync.slug(fromRemoteURL: "ssh://git@github.com/julusian/node-logitech-mx-creative-console"),
+                       "julusian/node-logitech-mx-creative-console")
+        XCTAssertNil(GitHubSync.slug(fromRemoteURL: "git@gitlab.com:someone/repo.git"))
+        XCTAssertNil(GitHubSync.slug(fromRemoteURL: "/local/path/repo"))
+    }
+
+    func testOriginURLExtractionFromGitConfig() {
+        let config = """
+        [core]
+            bare = false
+        [remote "upstream"]
+            url = https://github.com/other/repo.git
+        [remote "origin"]
+            url = git@github.com:neuroccm/LogiKeyPadMacOSSwift.git
+            fetch = +refs/heads/*:refs/remotes/origin/*
+        """
+        XCTAssertEqual(GitHubSync.originURL(gitConfigText: config),
+                       "git@github.com:neuroccm/LogiKeyPadMacOSSwift.git")
+    }
+
+    func testRepoListParsingSortsByPushedAt() {
+        let json = """
+        [{"nameWithOwner":"a/old","name":"old","url":"https://github.com/a/old","pushedAt":"2026-01-01T00:00:00Z","isPrivate":false},
+         {"nameWithOwner":"a/new","name":"new","url":"https://github.com/a/new","pushedAt":"2026-10-18T00:00:00Z","isPrivate":true}]
+        """
+        let repos = GitHubSync.parseRepoList(Data(json.utf8))
+        XCTAssertEqual(repos?.map(\.name), ["new", "old"])
+        XCTAssertEqual(repos?.first?.isPrivate, true)
+    }
+
+    func testOldConfigWithoutRecentCountStillDecodes() throws {
+        let old = #"{"theme":"blueprint","repoPath":"/tmp/x","pages":[],"editorApp":"Cursor","terminalApp":"Ghostty"}"#
+        let cfg = try JSONDecoder().decode(PadConfig.self, from: Data(old.utf8))
+        XCTAssertEqual(cfg.recentCount, 5)
+        XCTAssertEqual(cfg.theme, .blueprint)
+        XCTAssertEqual(cfg.editorApp, "Cursor")
+    }
+
     func testThemesAreBlackOrBlueWithWhiteText() {
         XCTAssertEqual(PadTheme.midnight.svgBackground, "#000000")
         XCTAssertEqual(PadTheme.blueprint.svgBackground, "#052ED9")

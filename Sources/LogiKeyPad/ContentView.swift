@@ -3,6 +3,8 @@ import AppKit
 
 struct ContentView: View {
     @EnvironmentObject var app: AppState
+    @EnvironmentObject var github: GitHubSync
+    @State private var showRepoPicker = false
 
     private var pageIndex: Int { app.devicePage }
     private var pageBinding: Binding<Int> {
@@ -48,7 +50,8 @@ struct ContentView: View {
             }
             Spacer()
             healthDot(ok: app.hid.connected, label: "Keypad HID")
-            Button("Choose Repo…") { chooseRepo() }
+            Button("Repos…") { showRepoPicker = true }
+                .popover(isPresented: $showRepoPicker, arrowEdge: .bottom) { repoPicker }
             Button { app.monitor.scheduleRefresh(includeCI: true); app.refreshHealth() } label: {
                 Image(systemName: "arrow.clockwise")
             }.help("Refresh git + CI state")
@@ -75,6 +78,117 @@ struct ContentView: View {
             Circle().fill(ok ? Color.green : Color.orange).frame(width: 8, height: 8)
             Text(label).font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: Repo picker — GitHub recent pushes, resolved to local clones
+
+    private var recentBinding: Binding<Int> {
+        Binding(get: { app.config.recentCount },
+                set: { app.config.recentCount = $0; app.saveConfig() })
+    }
+
+    private var relativeTime: RelativeDateTimeFormatter {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }
+
+    private var repoPicker: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("GitHub — recent pushes").font(.headline)
+                Spacer()
+                Picker("Show", selection: recentBinding) {
+                    Text("Recent 5").tag(5)
+                    Text("Recent 10").tag(10)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 190)
+            }
+            .padding(12)
+
+            Divider()
+
+            if github.syncing && github.repos.isEmpty {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Syncing GitHub…") }
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            } else if github.repos.isEmpty {
+                Text(github.lastError ?? "No GitHub repos yet — press Sync GitHub.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .multilineTextAlignment(.center)
+                    .padding()
+            } else {
+                List {
+                    ForEach(Array(github.repos.prefix(app.config.recentCount))) { repo in
+                        repoRow(repo)
+                    }
+                }
+                .listStyle(.plain)
+            }
+
+            Divider()
+
+            HStack(spacing: 10) {
+                Button {
+                    Task { await github.sync() }
+                } label: {
+                    if github.syncing { ProgressView().controlSize(.small) }
+                    Text("Sync GitHub")
+                }
+                .disabled(github.syncing)
+                if let last = github.lastSynced {
+                    Text("synced \(relativeTime.localizedString(for: last, relativeTo: Date()))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Choose Folder…") { showRepoPicker = false; chooseRepo() }
+            }
+            .padding(12)
+        }
+        .frame(width: 470, height: 430)
+    }
+
+    private func repoRow(_ repo: GitHubRepo) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(repo.name).font(.body).bold()
+                    if repo.isPrivate {
+                        Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Text(repo.nameWithOwner).font(.caption).foregroundStyle(.secondary)
+                }
+                Text(subtitle(for: repo))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            if app.cloningSlug == repo.slug {
+                ProgressView().controlSize(.small)
+                Text("Cloning…").font(.caption)
+            } else if repo.localPath == nil {
+                Button("Clone") { Task { await app.cloneRepo(repo) } }
+                    .controlSize(.small)
+            } else if repo.localPath == app.config.repoPath {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let path = repo.localPath {
+                app.setRepo(path)
+                showRepoPicker = false
+            }
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func subtitle(for repo: GitHubRepo) -> String {
+        let pushed = "pushed \(relativeTime.localizedString(for: repo.pushedAt, relativeTo: Date()))"
+        guard let path = repo.localPath else { return "\(pushed) · not cloned" }
+        let home = NSHomeDirectory()
+        let pretty = path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
+        return "\(pushed) · \(pretty)"
     }
 
     private func chooseRepo() {
