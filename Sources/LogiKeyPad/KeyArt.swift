@@ -36,6 +36,17 @@ enum KeyArt {
         return jpeg(rep)
     }
 
+    /// Solid-black full panel — the device's power-on blank state,
+    /// restored when the app quits.
+    static func blankPanelJPEG() -> Data? {
+        guard let rep = makeRep(width: panelSize, height: panelSize) else { return nil }
+        draw(in: rep) {
+            NSColor.black.setFill()
+            NSRect(x: 0, y: 0, width: panelSize, height: panelSize).fill()
+        }
+        return jpeg(rep)
+    }
+
     static func tileJPEG(action: CatalogAction?, theme: PadTheme, badge: Badge?) -> Data? {
         guard let rep = makeRep(width: tileSize, height: tileSize) else { return nil }
         draw(in: rep) {

@@ -215,6 +215,7 @@ struct ContentView: View {
             Picker("Editor", selection: editorBinding) {
                 Text("VS Code").tag("Visual Studio Code")
                 Text("Cursor").tag("Cursor")
+                Text("BBEdit").tag("BBEdit")
                 Text("Xcode").tag("Xcode")
             }
             .frame(width: 134)
@@ -246,6 +247,10 @@ struct ContentView: View {
     private var editorBinding: Binding<String> {
         Binding(get: { app.config.editorApp },
                 set: { app.config.editorApp = $0; app.saveConfig() })
+    }
+    private var execBinding: Binding<String> {
+        Binding(get: { app.config.executionMode },
+                set: { app.config.executionMode = $0; app.saveConfig() })
     }
     private var terminalBinding: Binding<String> {
         Binding(get: { app.config.terminalApp },
@@ -333,6 +338,13 @@ struct ContentView: View {
                 get: { app.launchAtLogin },
                 set: { app.setLaunchAtLogin($0) }))
                 .toggleStyle(.checkbox)
+            Picker("Run", selection: execBinding) {
+                Text("Visible").tag("visible")
+                Text("In app").tag("headless")
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 190)
+            .help("Visible: Git/Build commands run in your Terminal window for this repo. In app: headless, output in the log.")
             Text("Click a key to test-fire · right-click to reassign")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()

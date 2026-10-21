@@ -97,7 +97,7 @@ final class Executor {
         let apple = """
         tell application "Terminal"
             activate
-            do script "\(script.replacingOccurrences(of: "\"", with: "\\\""))"
+            do script "\(TerminalTarget.appleScriptEscape(script))"
         end tell
         """
         var err: NSDictionary?
@@ -109,8 +109,12 @@ final class Executor {
     private func openEditor() -> (Bool, String) {
         if let fail = requireRepo() { return fail }
         let editor = config().editorApp
-        let cli = editor == "Cursor" ? "/usr/local/bin/cursor" : "/usr/local/bin/code"
-        if FileManager.default.isExecutableFile(atPath: cli) {
+        // CLI-first per editor (BBEdit ships /usr/local/bin/bbedit); Xcode has
+        // no CLI opener and falls through to the app-open path below.
+        let cli = ["Visual Studio Code": "/usr/local/bin/code",
+                   "Cursor": "/usr/local/bin/cursor",
+                   "BBEdit": "/usr/local/bin/bbedit"][editor]
+        if let cli, FileManager.default.isExecutableFile(atPath: cli) {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: cli)
             p.arguments = [repo]
@@ -145,14 +149,83 @@ final class Executor {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
+    // MARK: - Visible-in-terminal routing
+
+    private var useVisible: Bool { config().executionMode == "visible" }
+
+    private enum VisibleOutcome {
+        case sent(String)         // ran in the matched existing window
+        case openedNew(String)    // no match (or delivery failed): new window
+        case ghostty(String)      // Ghostty: frontmost + clipboard (no scripting API)
+        case busyFallback(String) // matched shell busy: caller runs headless
+    }
+
+    /// Runs `command` visibly: matched idle Terminal window by tty+cwd,
+    /// else a new window; Ghostty gets clipboard delivery. A busy matched
+    /// shell NEVER receives text — the caller falls back to headless.
+    private func runVisible(_ command: String) async -> VisibleOutcome {
+        if config().terminalApp == "Ghostty" {
+            _ = openTerminal(command: command)
+            return .ghostty("Ghostty front — ⌘V then ⏎ runs: \(command)")
+        }
+        let sessions = await TerminalTarget.enumerate()
+        switch TerminalTarget.match(repo: repo, sessions: sessions) {
+        case .idle(let s):
+            // Subshell-wrap when the shell sits in a subdir so builds still
+            // run at repo root without moving the user's shell.
+            let effective = (s.cwd == repo) ? command : "(cd \(shellQuote(repo)) && \(command))"
+            if TerminalTarget.doScript(tty: s.tty, command: effective) {
+                return .sent("In your terminal (\(s.tty.replacingOccurrences(of: "/dev/", with: ""))): \(command)")
+            }
+            log("Terminal delivery failed — opening a new window instead.")
+            return .openedNew(openTerminal(command: command).1)
+        case .busyOnly(let s):
+            return .busyFallback("Terminal \(s.tty.replacingOccurrences(of: "/dev/", with: "")) is busy (program in foreground)")
+        case .none:
+            return .openedNew(openTerminal(command: command).1)
+        }
+    }
+
+    /// Maps a visible outcome to a result, running `headless` only on busy.
+    private func visibleOrHeadless(_ command: String,
+                                   headless: () async -> (Bool, String)) async -> (Bool, String) {
+        switch await runVisible(command) {
+        case .sent(let m), .openedNew(let m), .ghostty(let m):
+            return (true, m)
+        case .busyFallback(let why):
+            log("\(why) — running in app instead.")
+            let r = await headless()
+            return (r.0, "\(why) — ran in app: \(r.1)")
+        }
+    }
+
     // MARK: - Build tasks (auto-detected per project kind)
 
     private func runTask(_ verb: String) async -> (Bool, String) {
         if let fail = requireRepo() { return fail }
-        if verb == "dev" { return toggleDevServer() }
+        if verb == "dev" {
+            if useVisible, let cmd = devCommand() {
+                // Busy here most likely means the server is ALREADY running
+                // in that terminal — never start a second one headlessly.
+                switch await runVisible(cmd) {
+                case .sent(let m), .openedNew(let m), .ghostty(let m):
+                    return (true, m + " · Ctrl-C in terminal to stop")
+                case .busyFallback(let why):
+                    return (true, "\(why) — dev server likely already running there; Ctrl-C in terminal to stop")
+                }
+            }
+            return toggleDevServer()
+        }
         guard let cmd = taskCommand(verb) else {
             return (false, "No \(verb) command for this project (\(monitor.projectKind.rawValue))")
         }
+        if useVisible {
+            return await visibleOrHeadless(cmd) { [self] in await runTaskHeadless(cmd: cmd, verb: verb) }
+        }
+        return await runTaskHeadless(cmd: cmd, verb: verb)
+    }
+
+    private func runTaskHeadless(cmd: String, verb: String) async -> (Bool, String) {
         log("$ \(cmd)")
         let r = await Shell.zsh(cmd, cwd: repo, timeout: verb == "test" || verb == "build" ? 600 : 300)
         let tail = r.out.split(separator: "\n").suffix(25).joined(separator: "\n")
@@ -183,19 +256,21 @@ final class Executor {
         }
     }
 
+    private func devCommand() -> String? {
+        switch monitor.projectKind {
+        case .node: return monitor.nodeScripts().contains("dev") ? "npm run dev" : nil
+        case .swift: return "swift run"
+        case .make: return "make dev"
+        default: return nil
+        }
+    }
+
     private func toggleDevServer() -> (Bool, String) {
         if devServer.isRunning {
             devServer.stop()
             return (true, "Dev server stopped")
         }
-        let cmd: String?
-        switch monitor.projectKind {
-        case .node: cmd = monitor.nodeScripts().contains("dev") ? "npm run dev" : nil
-        case .swift: cmd = "swift run"
-        case .make: cmd = "make dev"
-        default: cmd = nil
-        }
-        guard let cmd else { return (false, "No dev command for this project") }
+        guard let cmd = devCommand() else { return (false, "No dev command for this project") }
         log("$ \(cmd) (streaming; press Server again to stop)")
         devServer.start(command: cmd, cwd: repo, label: "dev") { [weak self] chunk in
             Task { @MainActor in self?.log(chunk) }
@@ -205,7 +280,51 @@ final class Executor {
 
     // MARK: - Git
 
+    /// Shell equivalent for git verbs that read well in a terminal.
+    /// nil = keep the headless behavior (diff in editor, clipboard).
+    private func visibleGitCommand(_ verb: String) -> String? {
+        switch verb {
+        case "status": return "git status -sb"
+        case "stage": return "git add -A && git status -sb"
+        case "push": return "git push"
+        case "pull": return "git pull --ff-only"
+        case "fetch": return "git fetch --prune && git status -sb"
+        case "stash":
+            if monitor.state.dirty + monitor.state.staged > 0 { return "git stash push -m logikeypad" }
+            if monitor.state.hasStash { return "git stash pop" }
+            return nil
+        default: return nil
+        }
+    }
+
     private func runGit(_ verb: String) async -> (Bool, String) {
+        if useVisible {
+            if let fail = requireRepo() { return fail }
+            if verb == "commit" {
+                let msg = commitMessage().trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !msg.isEmpty else {
+                    bringAppToFront()
+                    return (false, "Type a commit message in LogiKeyPad first")
+                }
+                guard monitor.state.staged > 0 else { return (false, "Nothing staged — press Stage first") }
+                return await visibleOrHeadless("git commit -m \(shellQuote(msg))") { [self] in
+                    await runGitHeadless("commit")
+                }
+            }
+            if let cmd = visibleGitCommand(verb) {
+                let r = await visibleOrHeadless(cmd) { [self] in await runGitHeadless(verb) }
+                if verb == "status" {
+                    await monitor.refreshNow(includeCI: true)
+                    let s = monitor.state
+                    return (true, "\(r.1) · \(s.branch) \(s.staged)st \(s.dirty)d ↑\(s.ahead) ↓\(s.behind)")
+                }
+                return r
+            }
+        }
+        return await runGitHeadless(verb)
+    }
+
+    private func runGitHeadless(_ verb: String) async -> (Bool, String) {
         if let fail = requireRepo() { return fail }
         switch verb {
         case "status":
@@ -271,6 +390,15 @@ final class Executor {
             return (false, create.trimmed.isEmpty ? "gh pr create failed" : create.trimmed)
         case "checks":
             monitor.refreshCI()
+            if useVisible {
+                let r = await visibleOrHeadless("gh pr checks") { [self] in
+                    let h = await Shell.gh(["pr", "checks"], cwd: repo, timeout: 60)
+                    let tail = h.out.split(separator: "\n").suffix(12).joined(separator: "\n")
+                    if !tail.isEmpty { log(tail) }
+                    return (true, "CI: \(monitor.state.ci.rawValue) — details in log")
+                }
+                return r
+            }
             let r = await Shell.gh(["pr", "checks"], cwd: repo, timeout: 60)
             let tail = r.out.split(separator: "\n").suffix(12).joined(separator: "\n")
             if !tail.isEmpty { log(tail) }

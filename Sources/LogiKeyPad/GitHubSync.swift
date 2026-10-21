@@ -30,10 +30,7 @@ final class GitHubSync: ObservableObject {
     }
 
     private static var cacheURL: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LogiKeyPad", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("github.json")
+        AppPaths.supportDir.appendingPathComponent("github.json")
     }
 
     func loadCache() {

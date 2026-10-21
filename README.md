@@ -80,7 +80,7 @@ for both.
 
 ```sh
 git clone https://github.com/neuroccm/LogiKeyPadMacOSSwift.git
-cd LogiKeyPadMacOSSwift
+cd LogiKeyPad
 swift test                    # 14 tests
 ./scripts/build-dmg.sh        # app + fresh timestamped DMG on ~/Desktop
 ```

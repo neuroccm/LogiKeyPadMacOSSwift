@@ -22,6 +22,11 @@ enum HIDPP {
         request(feature: 0x0B, function: 3, params: [UInt8(control >> 8), UInt8(control & 0xFF), 0x03])
     }
 
+    /// Restores a page button to its default (non-diverted) reporting.
+    static func undivertPageButton(control: UInt16) -> [UInt8] {
+        request(feature: 0x0B, function: 3, params: [UInt8(control >> 8), UInt8(control & 0xFF), 0x00])
+    }
+
     /// Parses a 0x13 button report payload (report-ID byte already stripped).
     /// Returns currently-down key ids (1...9), or nil if not a button report.
     static func parseButtonReport(_ b: [UInt8]) -> Set<Int>? {
@@ -192,6 +197,26 @@ final class MXKeypadHID: ObservableObject {
             IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, CFIndex(id), buf.baseAddress!, CFIndex(buf.count))
         }
         return ret == kIOReturnSuccess
+    }
+
+    /// Returns the keypad to its pre-app default state and closes it:
+    /// blank (black) panel + page buttons un-diverted. Synchronous and
+    /// best-effort — called from applicationWillTerminate, where there is
+    /// no time for ACK pacing; brief runloop spins let USB writes flush.
+    func restoreDefaultsAndClose() {
+        guard let dev = device else { return }
+        if let blank = KeyArt.blankPanelJPEG() {
+            for packet in ImagePacket.make(jpeg: [UInt8](blank), x: 0, y: 0, w: 480, h: 480) {
+                _ = send(packet)
+            }
+        }
+        _ = send(HIDPP.undivertPageButton(control: UInt16(Self.pageLeftID)))
+        _ = send(HIDPP.undivertPageButton(control: UInt16(Self.pageRightID)))
+        let deadline = Date().addingTimeInterval(0.35)
+        while Date() < deadline { CFRunLoopRunInMode(.defaultMode, 0.02, true) }
+        IOHIDDeviceClose(dev, IOOptionBits(kIOHIDOptionsTypeNone))
+        device = nil
+        connected = false
     }
 
     /// Paints one JPEG region, awaiting per-packet ACKs (250 ms timeout each;

@@ -1,6 +1,17 @@
 import Foundation
 import SwiftUI
 
+/// Single source for the Application Support directory.
+enum AppPaths {
+    static var supportDir: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LogiKeyPad", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+}
+
 // MARK: - Catalog (single source of truth: Resources/catalog.json)
 
 struct Catalog: Codable, Sendable {
@@ -62,13 +73,14 @@ struct PadConfig: Codable, Sendable {
     var editorApp: String = "Visual Studio Code"
     var terminalApp: String = "Terminal"  // Terminal (scriptable) or Ghostty (open-at-dir)
     var recentCount: Int = 5               // GitHub repo picker: recent 5 or 10
+    var executionMode: String = "visible"  // "visible" (your terminal) | "headless" (in app)
 
     init(theme: PadTheme = .midnight, repoPath: String = "", pages: [CatalogPage],
          editorApp: String = "Visual Studio Code", terminalApp: String = "Terminal",
-         recentCount: Int = 5) {
+         recentCount: Int = 5, executionMode: String = "visible") {
         self.theme = theme; self.repoPath = repoPath; self.pages = pages
         self.editorApp = editorApp; self.terminalApp = terminalApp
-        self.recentCount = recentCount
+        self.recentCount = recentCount; self.executionMode = executionMode
     }
 
     // decodeIfPresent throughout: configs written by older builds keep loading
@@ -81,6 +93,7 @@ struct PadConfig: Codable, Sendable {
         editorApp = try c.decodeIfPresent(String.self, forKey: .editorApp) ?? "Visual Studio Code"
         terminalApp = try c.decodeIfPresent(String.self, forKey: .terminalApp) ?? "Terminal"
         recentCount = try c.decodeIfPresent(Int.self, forKey: .recentCount) ?? 5
+        executionMode = try c.decodeIfPresent(String.self, forKey: .executionMode) ?? "visible"
     }
 
     static func defaults(catalog: Catalog) -> PadConfig {
@@ -88,10 +101,7 @@ struct PadConfig: Codable, Sendable {
     }
 
     private static var fileURL: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LogiKeyPad", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("config.json")
+        AppPaths.supportDir.appendingPathComponent("config.json")
     }
 
     static func load(catalog: Catalog) -> PadConfig {

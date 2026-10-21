@@ -69,7 +69,10 @@ final class RepoMonitor: ObservableObject {
         async let stash = Shell.git(["stash", "list"], cwd: path)
         let (s, st) = await (status, stash)
         guard s.ok else {
-            if state.isRepo { log("git status failed: \(s.trimmed)") }
+            // Always surface: a silent "Not a git repo" hides TCC denials,
+            // safe.directory complaints, and other real git failures.
+            log("git status failed (exit \(s.code)): \(s.trimmed.isEmpty ? "(no output)" : s.trimmed)")
+            FileHandle.standardError.write(Data("git status failed exit=\(s.code) out=\(s.out)\n".utf8))
             state = RepoState()
             return
         }

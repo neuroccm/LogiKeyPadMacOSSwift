@@ -111,10 +111,7 @@ final class BridgeServer: ObservableObject {
     // MARK: Token file (shared with the plugin)
 
     static func tokenFileURL() -> URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LogiKeyPad", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("bridge-token")
+        AppPaths.supportDir.appendingPathComponent("bridge-token")
     }
 
     private static func loadOrCreateToken() -> String {

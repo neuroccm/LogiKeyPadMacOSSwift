@@ -166,6 +166,69 @@ final class LogiKeyPadTests: XCTestCase {
         XCTAssertEqual(cfg.editorApp, "Cursor")
     }
 
+    // MARK: Terminal targeting (fixtures from live ps/lsof captures)
+
+    func testParseSessionsFiltersShellsAndIdle() {
+        let ps = """
+        61470 61470 61470 ttys000  -zsh
+        88997 88997 88997 ttys001  -zsh
+         3871  3871 11707 ttys002  -zsh
+        23184 23184 24419 ttys004  -zsh
+          605   605  605 ??       loginwindow
+          999   999  999 ttys007  login
+        """
+        let sessions = TerminalTarget.parseSessions(psOutput: ps)
+        XCTAssertEqual(sessions.map(\.pid), [61470, 88997, 3871, 23184])
+        XCTAssertEqual(sessions.map(\.tty), ["/dev/ttys000", "/dev/ttys001", "/dev/ttys002", "/dev/ttys004"])
+        XCTAssertEqual(sessions.map(\.isIdle), [true, true, false, false])
+    }
+
+    func testParseLsofCwdBatch() {
+        let lsof = "p3871\nfcwd\nn/Users/x/repo\np922\nfcwd\nn/\n"
+        XCTAssertEqual(TerminalTarget.parseLsofCwd(lsof), [3871: "/Users/x/repo", 922: "/"])
+    }
+
+    func testMatchPrefersExactThenSubdirAndIdleOverBusy() {
+        func s(_ pid: Int, pgid: Int, tpgid: Int, tty: String, cwd: String) -> ShellSession {
+            var v = ShellSession(pid: pid, pgid: pgid, tpgid: tpgid, tty: tty, comm: "-zsh")
+            v.cwd = cwd
+            return v
+        }
+        let busyExact = s(1, pgid: 1, tpgid: 99, tty: "/dev/ttys001", cwd: "/repo")
+        let idleExact = s(2, pgid: 2, tpgid: 2, tty: "/dev/ttys002", cwd: "/repo")
+        let idleSub = s(3, pgid: 3, tpgid: 3, tty: "/dev/ttys003", cwd: "/repo/Sources")
+        let elsewhere = s(4, pgid: 4, tpgid: 4, tty: "/dev/ttys004", cwd: "/other")
+        XCTAssertEqual(TerminalTarget.match(repo: "/repo", sessions: [busyExact, idleExact, idleSub, elsewhere]), .idle(idleExact))
+        XCTAssertEqual(TerminalTarget.match(repo: "/repo", sessions: [busyExact, idleSub]), .idle(idleSub),
+                       "any idle shell is safe to type into; only its own busy state matters")
+        XCTAssertEqual(TerminalTarget.match(repo: "/repo", sessions: [busyExact]), .busyOnly(busyExact))
+        XCTAssertEqual(TerminalTarget.match(repo: "/repo", sessions: [idleSub, elsewhere]), .idle(idleSub))
+        XCTAssertEqual(TerminalTarget.match(repo: "/repo", sessions: [elsewhere]), .none)
+        XCTAssertEqual(TerminalTarget.match(repo: "", sessions: [idleExact]), .none)
+    }
+
+    func testAppleScriptEscaping() {
+        XCTAssertEqual(TerminalTarget.appleScriptEscape(#"git commit -m "a\b""#),
+                       #"git commit -m \"a\\b\""#)
+    }
+
+    func testConfigDefaultsToVisibleExecution() throws {
+        let old = #"{"theme":"midnight","repoPath":"","pages":[]}"#
+        let cfg = try JSONDecoder().decode(PadConfig.self, from: Data(old.utf8))
+        XCTAssertEqual(cfg.executionMode, "visible")
+    }
+
+    func testUndivertAndBlankPanelPackets() throws {
+        XCTAssertEqual(Array(HIDPP.undivertPageButton(control: 0x01A2).prefix(7)),
+                       [0x11, 0xFF, 0x0B, 0x3B, 0x01, 0xA2, 0x00])
+        let blank = try XCTUnwrap(KeyArt.blankPanelJPEG())
+        XCTAssertEqual(NSBitmapImageRep(data: blank)?.pixelsWide, 480)
+        XCTAssertLessThan(blank.count, 12_000, "blank panel must stay a 1-3 packet paint")
+        let packets = ImagePacket.make(jpeg: [UInt8](blank), x: 0, y: 0, w: 480, h: 480)
+        XCTAssertLessThanOrEqual(packets.count, 3)
+        XCTAssertEqual(packets[0][0], 0x14)
+    }
+
     func testThemesAreBlackOrBlueWithWhiteText() {
         XCTAssertEqual(PadTheme.midnight.svgBackground, "#000000")
         XCTAssertEqual(PadTheme.blueprint.svgBackground, "#052ED9")

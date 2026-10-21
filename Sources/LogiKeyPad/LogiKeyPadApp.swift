@@ -87,6 +87,13 @@ final class AppState: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
+        // Views observe AppState, not these child objects — forward their
+        // changes or the header/log go stale until an unrelated rerender
+        // (found when repo state updated silently under a frozen header).
+        for child in [monitor.objectWillChange, hid.objectWillChange, bridge.objectWillChange] {
+            child.sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
         monitor.setRepo(config.repoPath)
         monitor.startSlowTimer()
         executor.onPomodoroTick = { [weak self] text in
@@ -116,6 +123,11 @@ final class AppState: ObservableObject {
             if connected { self.repaintPanel(force: true) }
         }
         hid.start()
+        // Leave the hardware as we found it: blank panel, default buttons.
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hid.restoreDefaultsAndClose() }
+        }
         monitor.$state
             .removeDuplicates()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
