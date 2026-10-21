@@ -345,7 +345,7 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .frame(width: 190)
             .help("Visible: Git/Build commands run in your Terminal window for this repo. In app: headless, output in the log.")
-            Text("Click a key to test-fire · right-click to reassign")
+            Text("Educational demo · Muse Code (muse-wonder-full-1.0) · Click a key to test-fire")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
             Button("Reveal Config") {

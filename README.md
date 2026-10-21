@@ -13,6 +13,14 @@
 
 ---
 
+> **Educational demonstration project.** Built to explore and demonstrate
+> modern software capabilities — native Swift, direct USB HID/HID++ device
+> control, event-driven state, and local-first developer tooling — for
+> learning and personal coding experimentation. Not a commercial product.
+> Works *with* the Logitech MX Creative Keypad; not affiliated with or
+> endorsed by Logitech. Built with **Muse Code powered by
+> muse-wonder-full-1.0** (Meta).
+
 ## What it does
 
 Press a physical key, something useful happens in your repo — and the keys
@@ -172,6 +180,7 @@ faces, SDK plugin, and tests all derive from it.
 
 ## Credits & references
 
+- **Muse Code powered by muse-wonder-full-1.0** (Meta's Muse model family) — designed and implemented with the repo owner, including the live on-hardware protocol verification documented here
 - [julusian/node-logitech-mx-creative-console](https://github.com/julusian/node-logitech-mx-creative-console) — the open protocol implementation this driver ports and verifies
 - [Logi Actions SDK docs](https://logitech.github.io/actions-sdk-docs/) — the official (Options+-hosted) path in `plugin/`
 - [OpenLogi](https://github.com/aprilnea/openlogi) — the local-first ethos (different devices, same spirit)
@@ -179,9 +188,10 @@ faces, SDK plugin, and tests all derive from it.
 
 ## License & contributions
 
-Copyright © 2026 Houman Khosravani. **All rights reserved** — this repository
-is public for reading and learning; no license to use, copy, or redistribute
-is granted. The project is not accepting contributions, issues, or pull
-requests at this time (repository features are locked down accordingly).
+Copyright © 2026 Houman Khosravani. **All rights reserved** — this is an
+educational demonstration published for reading and learning; no license to
+use, copy, or redistribute is granted. The project is not accepting
+contributions, issues, or pull requests at this time (repository features
+are locked down accordingly).
 "Logitech", "Logi", and "MX Creative" are trademarks of Logitech; this is an
 independent personal project, not affiliated with or endorsed by Logitech.

@@ -3,10 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "== swift build (release) =="
-swift build -c release
+echo "== swift build (release, universal arm64 + x86_64) =="
+swift build -c release --arch arm64 --arch x86_64
 
-BIN_DIR="$(swift build -c release --show-bin-path)"
+BIN_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 APP="build/LogiKeyPad.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -38,6 +38,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+# Ad-hoc signature ONLY (no Developer ID, no notarization): anyone can
+# install and run it (first launch: right-click → Open). Apple Silicon
+# refuses to execute arm64 code with NO signature at all, so ad-hoc is
+# the minimum viable "unsigned" state. Do not "fix" this by removing it.
 codesign --force --deep --sign - "$APP"
 echo "== built: $APP =="
 echo "Install with:  cp -R $APP /Applications/   (then launch LogiKeyPad)"
